@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vitals — Daily Log</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap');
+
+  :root{
+    --bg:#F6F7F5;
+    --surface:#FFFFFF;
+    --ink:#1E2A24;
+    --ink-soft:#5B6B63;
+    --ink-faint:#93A39B;
+    --line:#DCE3DE;
+    --line-strong:#C3CDC6;
+    --morning:#E2A33D;
+    --afternoon:#3F8FA6;
+    --night:#4B4E8A;
+    --pulse:#D6604F;
+    --father:#3D5A73;
+    --father-tint:#EAF0F4;
+    --mother:#B4697A;
+    --mother-tint:#F8EFF1;
+    --ok:#4C8C6B;
+    --weight:#8A7A4E;
+    --sugar:#8155A6;
+    --radius:14px;
+    --fs:1;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);color:var(--ink);font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;padding:0 0 60px 0;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 18px;}
+  .hidden{display:none !important;}
+
+  /* ---------- Accessibility modes ---------- */
+  body.text-large{--fs:1.16;}
+  body.text-xlarge{--fs:1.36;}
+
+  body.high-contrast{
+    --line:#7C8880;--line-strong:#4B564F;--ink-faint:#3F4A44;--ink-soft:#28332D;
+  }
+  body.high-contrast .card,body.high-contrast .person-card,body.high-contrast input,body.high-contrast select{border-width:2px;}
+
+  body.reduce-motion *{animation:none !important;transition:none !important;}
+
+  body.large-touch .save-btn{padding:calc(20px * 1);min-height:60px;}
+  body.large-touch input[type=number],body.large-touch input[type=text],body.large-touch select{padding:14px 8px;min-height:48px;}
+  body.large-touch .switch{width:54px;height:32px;}
+  body.large-touch .switch .track::before{width:24px;height:24px;top:3px;left:3px;}
+  body.large-touch .switch input:checked + .track::before{transform:translateX(22px);}
+  body.large-touch .pill{padding:14px 6px;}
+  body.large-touch .person-card{padding:18px 14px;}
+  body.large-touch .ph-quick-btn{min-height:66px;}
+  body.large-touch .link-btn,body.large-touch .btn-secondary{min-height:50px;}
+
+  /* ---------- Header ---------- */
+  .header{padding:28px 18px 10px;text-align:center;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;font-size:calc(11px * var(--fs));letter-spacing:.14em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:6px;}
+  h1{font-family:'Fraunces',serif;font-weight:700;font-size:calc(34px * var(--fs));margin:0;letter-spacing:-0.01em;}
+  .subtitle{color:var(--ink-soft);font-size:calc(14px * var(--fs));margin-top:4px;}
+
+  .pulse-trace{width:100%;height:46px;margin:14px 0 4px;}
+  .pulse-trace path{fill:none;stroke:var(--pulse);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:520;stroke-dashoffset:520;animation:draw 1.6s ease-out forwards;}
+  @keyframes draw{to{stroke-dashoffset:0;}}
+  @media (prefers-reduced-motion:reduce){.pulse-trace path{animation:none;stroke-dashoffset:0;}}
+
+  /* ---------- Person switch ---------- */
+  .person-switch{display:flex;gap:10px;margin:18px 0;}
+  .person-card{flex:1;background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);padding:14px 12px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s ease, box-shadow .15s ease, transform .1s ease;}
+  .person-card:active{transform:scale(0.99);}
+  .person-card .avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:600;font-size:calc(15px * var(--fs));color:#fff;flex-shrink:0;}
+  .person-card.father .avatar{background:var(--father);}
+  .person-card.mother .avatar{background:var(--mother);}
+  .person-card .label{font-weight:600;font-size:calc(15px * var(--fs));}
+  .person-card .sub{font-size:calc(11.5px * var(--fs));color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;}
+  .person-card.active.father{border-color:var(--father);background:var(--father-tint);box-shadow:0 0 0 3px rgba(61,90,115,.08);}
+  .person-card.active.mother{border-color:var(--mother);background:var(--mother-tint);box-shadow:0 0 0 3px rgba(180,105,122,.08);}
+
+  /* ---------- Period pills ---------- */
+  .period-row{display:flex;gap:8px;margin-bottom:20px;}
+  .pill{flex:1;text-align:center;padding:10px 6px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);font-size:calc(13.5px * var(--fs));font-weight:600;color:var(--ink-soft);cursor:pointer;transition:all .15s ease;}
+  .pill[data-period="morning"].active{background:var(--morning);border-color:var(--morning);color:#fff;}
+  .pill[data-period="afternoon"].active{background:var(--afternoon);border-color:var(--afternoon);color:#fff;}
+  .pill[data-period="night"].active{background:var(--night);border-color:var(--night);color:#fff;}
+  .pill .suggested-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--pulse);margin-left:5px;vertical-align:middle;}
+
+  /* ---------- Card + toggle switch ---------- */
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:18px 16px 16px;margin-bottom:14px;transition:opacity .15s ease;}
+  .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
+  .card-head h2{font-family:'Fraunces',serif;font-size:calc(17px * var(--fs));font-weight:600;margin:0;}
+  .card.off .card-head h2{color:var(--ink-faint);}
+  .card .device-note{font-size:calc(12px * var(--fs));color:var(--ink-faint);margin-bottom:14px;}
+  .card-body{margin-top:12px;}
+  .card.off .card-body{display:none;}
+  .card.off .device-note{display:none;}
+
+  .switch{position:relative;width:42px;height:24px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .switch .track{position:absolute;inset:0;background:var(--line-strong);border-radius:999px;cursor:pointer;transition:background .15s ease;}
+  .switch .track::before{content:'';position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.2);}
+  .switch input:checked + .track{background:var(--ok);}
+  .switch input:checked + .track::before{transform:translateX(18px);}
+
+  /* ---------- BP / Oximeter trial grid ---------- */
+  .trial-grid{display:grid;grid-template-columns:44px repeat(3,1fr);gap:8px;align-items:center;margin-bottom:8px;}
+  .trial-grid .col-label{font-size:calc(11px * var(--fs));color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;text-align:center;}
+  .trial-grid .row-label{font-size:calc(12px * var(--fs));color:var(--ink-soft);font-weight:600;}
+  input[type=number],input[type=text]{width:100%;padding:9px 6px;border:1.5px solid var(--line);border-radius:9px;font-family:'IBM Plex Mono',monospace;font-size:calc(14.5px * var(--fs));text-align:center;color:var(--ink);background:#FCFDFC;-moz-appearance:textfield;}
+  input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+  input:focus{outline:none;border-color:var(--afternoon);box-shadow:0 0 0 3px rgba(63,143,166,.12);}
+  input.flag{border-color:var(--pulse);background:#FDF3F1;}
+  select{width:100%;padding:9px 8px;border:1.5px solid var(--line);border-radius:9px;font-family:'Inter',sans-serif;font-size:calc(13.5px * var(--fs));color:var(--ink);background:#FCFDFC;}
+
+  .avg-row{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line-strong);}
+  .avg-row .avg-label{font-size:calc(11px * var(--fs));color:var(--ink-faint);text-transform:uppercase;letter-spacing:.06em;}
+  .avg-row .avg-value{font-family:'Fraunces',serif;font-weight:700;font-size:calc(20px * var(--fs));}
+  .avg-row .avg-value .unit{font-family:'Inter',sans-serif;font-size:calc(11px * var(--fs));font-weight:500;color:var(--ink-faint);margin-left:2px;}
+
+  .single-row{display:flex;gap:10px;align-items:flex-end;}
+  .single-row .field{flex:1;}
+  .single-row label{display:block;font-size:calc(11px * var(--fs));color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+
+  .save-btn{width:100%;padding:15px;margin-top:4px;border:none;border-radius:12px;background:var(--ink);color:#fff;font-family:'Inter',sans-serif;font-weight:600;font-size:calc(15px * var(--fs));cursor:pointer;transition:opacity .15s ease;}
+  .save-btn:active{opacity:.85;}
+  .save-btn:disabled{background:var(--line-strong);cursor:not-allowed;}
+  .save-status{text-align:center;font-size:calc(12.5px * var(--fs));margin-top:10px;color:var(--ink-soft);min-height:16px;}
+  .save-status.ok{color:var(--ok);}
+  .save-status.warn{color:var(--pulse);}
+
+  .link-btn{display:block;width:100%;text-align:center;padding:13px;margin:18px 0 6px;border:1.5px dashed var(--line-strong);border-radius:12px;background:transparent;color:var(--ink-soft);font-weight:600;font-size:calc(14px * var(--fs));cursor:pointer;}
+  .link-btn:hover{border-color:var(--afternoon);color:var(--afternoon);}
+  .back-btn{background:none;border:none;color:var(--ink-soft);font-size:calc(13.5px * var(--fs));font-weight:600;cursor:pointer;padding:6px 0 16px;display:flex;align-items:center;gap:4px;}
+
+  .history-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);font-size:calc(13.5px * var(--fs));}
+  .history-item:last-child{border-bottom:none;}
+  .history-item .hi-left{display:flex;flex-direction:column;gap:2px;}
+  .history-item .hi-date{font-weight:600;}
+  .history-item .hi-period{font-size:calc(11px * var(--fs));color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;text-transform:capitalize;}
+  .history-item .hi-vitals{font-family:'IBM Plex Mono',monospace;font-size:calc(12.5px * var(--fs));text-align:right;max-width:220px;}
+  .history-item .hi-sync{font-size:calc(10.5px * var(--fs));margin-top:2px;text-align:right;}
+  .hi-sync.synced{color:var(--ok);}
+  .hi-sync.pending{color:var(--pulse);cursor:pointer;text-decoration:underline;}
+  .empty-hist{color:var(--ink-faint);font-size:calc(13px * var(--fs));text-align:center;padding:14px 0;}
+
+  .settings-toggle{display:flex;align-items:center;justify-content:center;gap:6px;margin:6px auto 22px;color:var(--ink-faint);font-size:calc(12.5px * var(--fs));cursor:pointer;width:fit-content;padding:6px 12px;border-radius:999px;}
+  .settings-toggle:hover{background:var(--surface);}
+  .settings-panel{display:none;}
+  .settings-panel.open{display:block;}
+  .settings-panel label{display:block;font-size:calc(12px * var(--fs));color:var(--ink-soft);margin-bottom:6px;font-weight:600;}
+  .settings-panel input[type=text]{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;font-family:'IBM Plex Mono',monospace;font-size:calc(13px * var(--fs));margin-bottom:10px;text-align:left;}
+  .settings-actions{display:flex;gap:8px;margin-top:4px;}
+  .btn-secondary{flex:1;padding:11px;border-radius:9px;border:1.5px solid var(--line);background:var(--surface);font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer;color:var(--ink);}
+  .btn-secondary.active{border-color:var(--afternoon);color:var(--afternoon);background:#EAF4F7;}
+  .btn-secondary:hover{border-color:var(--line-strong);}
+  .settings-hint{font-size:calc(11.5px * var(--fs));color:var(--ink-faint);line-height:1.5;margin-top:10px;}
+  .conn-status{font-size:calc(12px * var(--fs));margin-top:8px;min-height:16px;}
+  .settings-subhead{font-family:'Fraunces',serif;font-weight:600;font-size:calc(15px * var(--fs));margin:20px 0 10px;padding-top:16px;border-top:1px solid var(--line);}
+  .settings-subhead:first-child{margin-top:0;padding-top:0;border-top:none;}
+  .a11y-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);}
+  .a11y-row:last-child{border-bottom:none;}
+  .a11y-row .a11y-label{font-size:calc(13.5px * var(--fs));font-weight:600;color:var(--ink);}
+  .seg{display:flex;gap:6px;}
+  .seg button{padding:7px 12px;border-radius:8px;border:1.5px solid var(--line);background:var(--surface);font-size:calc(12px * var(--fs));cursor:pointer;color:var(--ink-soft);}
+  .seg button.active{border-color:var(--afternoon);color:var(--afternoon);background:#EAF4F7;font-weight:600;}
+
+  .section-label{font-family:'IBM Plex Mono',monospace;font-size:calc(11px * var(--fs));letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:22px 0 10px 2px;}
+
+  /* ---------- Blood report screen ---------- */
+  .param-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .param-row:last-child{border-bottom:none;}
+  .param-row .p-check{width:20px;height:20px;flex-shrink:0;accent-color:var(--sugar);}
+  .param-row .p-name{flex:1.3;font-size:calc(13.5px * var(--fs));font-weight:500;}
+  .param-row.disabled .p-name{color:var(--ink-faint);}
+  .param-row .p-value{flex:1;}
+  .param-row .p-unit{flex:0.85;}
+  .param-row input[type=number],.param-row input[type=text]{text-align:left;padding:8px;font-size:calc(13px * var(--fs));}
+  .custom-param-row{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);}
+  .custom-param-row input{flex:1;text-align:left;padding:8px;font-size:calc(13px * var(--fs));}
+  .custom-param-row .remove-x{flex:0;background:none;border:none;color:var(--pulse);font-size:18px;cursor:pointer;padding:0 4px;}
+  .add-param-btn{width:100%;padding:11px;margin-top:12px;border-radius:9px;border:1.5px dashed var(--line-strong);background:transparent;color:var(--ink-soft);font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer;}
+  .bloodreport-header{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+  .bloodreport-header .avatar{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',serif;font-weight:600;font-size:calc(13px * var(--fs));color:#fff;}
+  .bloodreport-header.father .avatar{background:var(--father);}
+  .bloodreport-header.mother .avatar{background:var(--mother);}
+
+  /* ---------- Parent Mode home ---------- */
+  .ph-greeting{font-family:'Fraunces',serif;font-weight:700;font-size:calc(24px * var(--fs));margin:4px 0 2px;}
+  .ph-date{color:var(--ink-soft);font-size:calc(13.5px * var(--fs));margin-bottom:18px;}
+  .ph-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;}
+  .ph-metric{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 14px;}
+  .ph-metric .ph-m-label{font-size:calc(12px * var(--fs));color:var(--ink-faint);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;}
+  .ph-metric .ph-m-value{font-family:'Fraunces',serif;font-weight:700;font-size:calc(26px * var(--fs));}
+  .ph-metric .ph-m-value .ph-unit{font-family:'Inter',sans-serif;font-size:calc(13px * var(--fs));font-weight:500;color:var(--ink-faint);}
+  .ph-metric .ph-m-sub{font-size:calc(11.5px * var(--fs));color:var(--ink-faint);margin-top:4px;}
+  .ph-metric.empty .ph-m-value{color:var(--ink-faint);font-size:calc(16px * var(--fs));}
+  .ph-section-title{font-family:'Fraunces',serif;font-weight:600;font-size:calc(16px * var(--fs));margin:20px 0 10px 2px;}
+  .ph-quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .ph-quick-btn{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--radius);padding:18px 10px;text-align:center;font-weight:600;font-size:calc(15px * var(--fs));cursor:pointer;color:var(--ink);}
+  .ph-quick-btn:active{transform:scale(0.98);}
+  .ph-switch-link{display:block;text-align:center;margin:26px auto 4px;color:var(--ink-faint);font-size:calc(12.5px * var(--fs));text-decoration:underline;background:none;border:none;cursor:pointer;padding:10px;}
+  .parent-flow-back{background:none;border:none;color:var(--ink-soft);font-size:calc(13.5px * var(--fs));font-weight:600;cursor:pointer;padding:6px 0 14px;}
+
+  /* ---------- Something changed ---------- */
+  .cc-attention{--cc-bg:#FBEAE5;--cc-border:#E3A491;--cc-text:#9A3B1E;}
+  .cc-watch{--cc-bg:#FBF1DD;--cc-border:#E8BE79;--cc-text:#8A5D0E;}
+  .cc-stable{--cc-bg:#EAF3EC;--cc-border:#9FC6AA;--cc-text:#2E6B45;}
+  .changed-card{width:100%;text-align:left;border-radius:var(--radius);padding:14px 15px;margin-bottom:18px;cursor:pointer;background:var(--cc-bg);border:1.5px solid var(--cc-border);}
+  .changed-card:disabled{cursor:default;}
+  .changed-card .cc-label{font-size:calc(12px * var(--fs));font-weight:700;color:var(--cc-text);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+  .changed-card .cc-dot{width:8px;height:8px;border-radius:50%;background:var(--cc-text);display:inline-block;}
+  .changed-card .cc-body{font-size:calc(13.5px * var(--fs));color:var(--ink);line-height:1.4;}
+  .changed-card .cc-link{font-size:calc(12.5px * var(--fs));color:var(--cc-text);font-weight:600;margin-top:8px;}
+  .changed-list-item{padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer;}
+  .changed-list-item:last-child{border-bottom:none;}
+  .changed-list-item .cli-top{display:flex;justify-content:space-between;align-items:center;}
+  .changed-list-item .cli-metric{font-size:calc(13.5px * var(--fs));font-weight:600;}
+  .changed-list-item .cli-badge{font-size:calc(10.5px * var(--fs));font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:3px 8px;border-radius:999px;background:var(--cc-bg);color:var(--cc-text);border:1px solid var(--cc-border);}
+  .changed-list-item .cli-desc{font-size:calc(12.5px * var(--fs));color:var(--ink-soft);margin-top:3px;}
+  .cd-compare{display:flex;gap:10px;margin-bottom:14px;}
+  .cd-compare .cd-box{flex:1;background:var(--surface-1,var(--surface));border:1px solid var(--line);border-radius:12px;padding:12px;}
+  .cd-compare .cd-box-label{font-size:calc(11px * var(--fs));color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px;}
+  .cd-compare .cd-box-value{font-family:'Fraunces',serif;font-weight:700;font-size:calc(22px * var(--fs));}
+  .cd-sparkline{width:100%;height:70px;margin:6px 0 16px;}
+  .cd-section-title{font-size:calc(13.5px * var(--fs));font-weight:700;margin:14px 0 4px;}
+  .cd-section-body{font-size:calc(13.5px * var(--fs));color:var(--ink-soft);line-height:1.5;margin-bottom:4px;}
+
+  /* ---------- Scan Reading ---------- */
+  .scan-device-btn{display:flex;align-items:center;gap:12px;width:100%;padding:16px;margin-bottom:10px;border-radius:var(--radius);border:1.5px solid var(--line);background:var(--surface);font-size:calc(15px * var(--fs));font-weight:600;color:var(--ink);cursor:pointer;text-align:left;}
+  .scan-device-btn .sdb-icon{font-size:20px;flex-shrink:0;}
+  .scan-camera-wrap{position:relative;width:100%;aspect-ratio:4/3;background:#111;border-radius:var(--radius);overflow:hidden;margin-bottom:14px;}
+  .scan-camera-wrap video{width:100%;height:100%;object-fit:cover;display:block;}
+  .scan-frame{position:absolute;inset:14% 8%;border:2.5px dashed rgba(255,255,255,.85);border-radius:12px;pointer-events:none;}
+  .scan-guidance{font-size:calc(13px * var(--fs));color:var(--ink-soft);text-align:center;margin-bottom:14px;}
+  .scan-capture-btn{width:78px;height:78px;border-radius:50%;background:var(--ink);border:5px solid var(--surface);box-shadow:0 0 0 2px var(--ink);margin:0 auto 18px;display:block;cursor:pointer;}
+  .scan-capture-btn:active{opacity:.8;}
+  .scan-status{text-align:center;font-size:calc(13px * var(--fs));color:var(--ink-soft);padding:24px 0;}
+  .scan-spinner{width:26px;height:26px;border:3px solid var(--line);border-top-color:var(--afternoon);border-radius:50%;margin:0 auto 10px;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  body.reduce-motion .scan-spinner{animation:none;border-top-color:var(--line);}
+  .scan-review-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+  .scan-review-title{font-size:calc(12px * var(--fs));color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+  .scan-review-grid{display:grid;gap:10px;margin-bottom:6px;}
+  .scan-review-field label{display:block;font-size:calc(11px * var(--fs));color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;}
+  .scan-confirm-q{font-size:calc(13.5px * var(--fs));font-weight:600;margin:14px 0 10px;}
+  .scan-review-actions{display:flex;gap:8px;}
+  .scan-fail-box{background:#FDF6EA;border:1px solid #E8BE79;border-radius:var(--radius);padding:16px;text-align:center;margin-bottom:14px;}
+  .scan-fail-box .sfb-title{font-weight:700;color:#8A5D0E;font-size:calc(14px * var(--fs));margin-bottom:4px;}
+  .scan-fail-box .sfb-body{font-size:calc(13px * var(--fs));color:var(--ink-soft);}
+  .scan-manual-link{display:block;width:100%;text-align:center;padding:12px;margin-top:6px;background:none;border:none;color:var(--ink-faint);font-size:calc(13px * var(--fs));text-decoration:underline;cursor:pointer;}
+  .scan-inline-link{display:inline-block;margin:4px 0 14px;background:none;border:none;color:var(--afternoon);font-size:calc(13px * var(--fs));font-weight:600;cursor:pointer;padding:6px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div class="eyebrow">Home Health Log</div>
+    <h1>Vitals</h1>
+    <div class="subtitle" id="header-subtitle">Track only what you measured, three times a day</div>
+    <svg class="pulse-trace" viewBox="0 0 500 46" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,23 L110,23 L128,23 L138,4 L150,42 L162,14 L172,23 L500,23"/>
+    </svg>
+  </div>
+
+  <div class="person-switch">
+    <div class="person-card father active" data-person="father">
+      <div class="avatar" id="father-avatar">F</div>
+      <div><div class="label" id="father-label">Father</div><div class="sub" id="father-count-label">0 logged</div></div>
+    </div>
+    <div class="person-card mother" data-person="mother">
+      <div class="avatar" id="mother-avatar">M</div>
+      <div><div class="label" id="mother-label">Mother</div><div class="sub" id="mother-count-label">0 logged</div></div>
+    </div>
+  </div>
+
+  <!-- ======================= PARENT MODE HOME ======================= -->
+  <div id="parent-home-screen">
+    <div class="ph-greeting" id="ph-greeting">Good morning</div>
+    <div class="ph-date" id="ph-date"></div>
+
+    <div id="ph-changed-slot"></div>
+
+    <div class="ph-grid" id="ph-grid"></div>
+
+    <div class="ph-section-title">Quick actions</div>
+    <div class="ph-quick-grid">
+      <button class="ph-quick-btn" data-quick="bp">+ Add BP</button>
+      <button class="ph-quick-btn" data-quick="sugar">+ Add sugar</button>
+      <button class="ph-quick-btn" data-quick="ox">+ Add oxygen</button>
+      <button class="ph-quick-btn" data-quick="weight">+ Add weight</button>
+    </div>
+    <button class="ph-quick-btn" style="width:100%;margin-top:10px;" data-quick="bloodreport">+ Add blood report</button>
+    <button class="ph-quick-btn" style="width:100%;margin-top:10px;" id="ph-scan-btn">📷 Scan a reading</button>
+
+    <button class="ph-switch-link" id="ph-switch-caregiver">Switch to caregiver mode</button>
+  </div>
+
+  <!-- ======================= VITALS SCREEN (caregiver / quick-add flow) ======================= -->
+  <div id="vitals-screen" class="hidden">
+    <button class="parent-flow-back hidden" id="parent-flow-back">← Back home</button>
+
+    <div id="caregiver-changed-block">
+      <div id="cg-changed-slot"></div>
+    </div>
+
+    <div class="period-row" id="period-row">
+      <div class="pill" data-period="morning">Morning</div>
+      <div class="pill" data-period="afternoon">Afternoon</div>
+      <div class="pill" data-period="night">Night</div>
+    </div>
+
+    <div class="card" id="card-bp" data-vital="bp">
+      <div class="card-head"><h2>Blood Pressure</h2><label class="switch"><input type="checkbox" checked data-toggle="bp"><span class="track"></span></label></div>
+      <div class="device-note">Top number / bottom number / pulse — 3 readings</div>
+      <div class="card-body">
+        <div class="trial-grid"><div></div><div class="col-label">TOP</div><div class="col-label">BOTTOM</div><div class="col-label">PULSE</div></div>
+        <div class="trial-grid"><div class="row-label">R1</div>
+          <input type="number" inputmode="numeric" data-field="bp-sys-1" placeholder="120">
+          <input type="number" inputmode="numeric" data-field="bp-dia-1" placeholder="80">
+          <input type="number" inputmode="numeric" data-field="bp-pulse-1" placeholder="72"></div>
+        <div class="trial-grid"><div class="row-label">R2</div>
+          <input type="number" inputmode="numeric" data-field="bp-sys-2" placeholder="120">
+          <input type="number" inputmode="numeric" data-field="bp-dia-2" placeholder="80">
+          <input type="number" inputmode="numeric" data-field="bp-pulse-2" placeholder="72"></div>
+        <div class="trial-grid"><div class="row-label">R3</div>
+          <input type="number" inputmode="numeric" data-field="bp-sys-3" placeholder="120">
+          <input type="number" inputmode="numeric" data-field="bp-dia-3" placeholder="80">
+          <input type="number" inputmode="numeric" data-field="bp-pulse-3" placeholder="72"></div>
+        <div class="avg-row">
+          <div><div class="avg-label">Average</div><div class="avg-value" id="bp-avg-display">—<span class="unit">mmHg</span></div></div>
+          <div style="text-align:right"><div class="avg-label">Pulse</div><div class="avg-value" id="bp-pulse-avg-display">—<span class="unit">bpm</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-ox" data-vital="ox">
+      <div class="card-head"><h2>Oxygen Level</h2><label class="switch"><input type="checkbox" checked data-toggle="ox"><span class="track"></span></label></div>
+      <div class="device-note">Oxygen % / pulse — 3 readings</div>
+      <div class="card-body">
+        <div class="trial-grid" style="grid-template-columns:44px 1fr 1fr;"><div></div><div class="col-label">O2 %</div><div class="col-label">PULSE</div></div>
+        <div class="trial-grid" style="grid-template-columns:44px 1fr 1fr;"><div class="row-label">R1</div>
+          <input type="number" inputmode="numeric" data-field="ox-spo2-1" placeholder="97">
+          <input type="number" inputmode="numeric" data-field="ox-pulse-1" placeholder="74"></div>
+        <div class="trial-grid" style="grid-template-columns:44px 1fr 1fr;"><div class="row-label">R2</div>
+          <input type="number" inputmode="numeric" data-field="ox-spo2-2" placeholder="97">
+          <input type="number" inputmode="numeric" data-field="ox-pulse-2" placeholder="74"></div>
+        <div class="trial-grid" style="grid-template-columns:44px 1fr 1fr;"><div class="row-label">R3</div>
+          <input type="number" inputmode="numeric" data-field="ox-spo2-3" placeholder="97">
+          <input type="number" inputmode="numeric" data-field="ox-pulse-3" placeholder="74"></div>
+        <div class="avg-row">
+          <div><div class="avg-label">Average oxygen</div><div class="avg-value" id="spo2-avg-display">—<span class="unit">%</span></div></div>
+          <div style="text-align:right"><div class="avg-label">Pulse</div><div class="avg-value" id="ox-pulse-avg-display">—<span class="unit">bpm</span></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-weight" data-vital="weight">
+      <div class="card-head"><h2>Weight</h2><label class="switch"><input type="checkbox" checked data-toggle="weight"><span class="track"></span></label></div>
+      <div class="device-note">One reading from the scale</div>
+      <div class="card-body">
+        <div class="single-row">
+          <div class="field"><label>Weight</label><input type="number" inputmode="decimal" step="0.1" data-field="weight-value" placeholder="68.5"></div>
+          <div class="field" style="flex:0.6;"><label>Unit</label><select data-field="weight-unit"><option value="kg">kg</option><option value="lb">lb</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="card-sugar" data-vital="sugar">
+      <div class="card-head"><h2>Blood Sugar</h2><label class="switch"><input type="checkbox" checked data-toggle="sugar"><span class="track"></span></label></div>
+      <div class="device-note">One glucometer reading</div>
+      <div class="card-body">
+        <div class="single-row">
+          <div class="field"><label>Reading</label><input type="number" inputmode="numeric" data-field="sugar-value" placeholder="110"></div>
+          <div class="field"><label>When</label><select data-field="sugar-context"><option value="Fasting">Fasting</option><option value="Post-Meal">Post-Meal</option><option value="Random">Random</option></select></div>
+          <div class="field" style="flex:0.7;"><label>Unit</label><select data-field="sugar-unit"><option value="mg/dL">mg/dL</option><option value="mmol/L">mmol/L</option></select></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="save-btn" id="save-btn">Save entry</button>
+    <div class="save-status" id="save-status"></div>
+    <button class="scan-inline-link hidden" id="scan-again-btn">📷 Scan another reading</button>
+
+    <button class="link-btn" id="goto-bloodreport-btn">+ Add Blood Report</button>
+    <button class="link-btn" id="cg-scan-btn">📷 Scan a reading instead</button>
+
+    <div id="caregiver-history-block">
+      <div class="section-label">Recent — <span id="history-person-label">Father</span></div>
+      <div class="card" id="history-card"><div class="empty-hist">No readings logged yet.</div></div>
+    </div>
+  </div>
+
+  <!-- ======================= BLOOD REPORT SCREEN ======================= -->
+  <div id="bloodreport-screen" class="hidden">
+    <button class="back-btn" id="back-to-vitals-btn">← Back</button>
+
+    <div class="bloodreport-header father" id="br-header">
+      <div class="avatar" id="br-avatar">F</div>
+      <div><div style="font-weight:700;font-size:calc(16px * var(--fs));" id="br-person-name">Father — Blood Report</div>
+        <div style="font-size:calc(11.5px * var(--fs));color:var(--ink-faint);font-family:'IBM Plex Mono',monospace;" id="br-date-label"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="device-note" style="margin-bottom:4px;">Tick anything you want to record from the lab report. Leave the rest unchecked.</div>
+      <div id="param-list"></div>
+      <div id="custom-param-list"></div>
+      <button class="add-param-btn" id="add-custom-param-btn">+ Add custom parameter</button>
+    </div>
+
+    <button class="save-btn" id="save-br-btn">Save blood report</button>
+    <div class="save-status" id="br-save-status"></div>
+
+    <div id="caregiver-br-history-block">
+      <div class="section-label">Recent reports — <span id="br-history-person-label">Father</span></div>
+      <div class="card" id="br-history-card"><div class="empty-hist">No blood reports logged yet.</div></div>
+    </div>
+  </div>
+
+  <!-- ======================= SCAN READING SCREEN ======================= -->
+  <div id="scan-screen" class="hidden">
+    <button class="back-btn" id="scan-back-btn">← Back</button>
+
+    <!-- Step 1: device picker -->
+    <div id="scan-step-picker">
+      <div class="settings-subhead" style="margin-top:0;padding-top:0;border-top:none;">What would you like to scan?</div>
+      <button class="scan-device-btn" data-scan-device="bp"><span class="sdb-icon">❤️</span> Blood pressure monitor</button>
+      <button class="scan-device-btn" data-scan-device="ox"><span class="sdb-icon">🫁</span> Oximeter</button>
+      <button class="scan-device-btn" data-scan-device="sugar"><span class="sdb-icon">🩸</span> Glucometer</button>
+      <button class="scan-device-btn" data-scan-device="weight"><span class="sdb-icon">⚖️</span> Weighing scale</button>
+    </div>
+
+    <!-- Step 2: camera -->
+    <div id="scan-step-camera" class="hidden">
+      <div class="scan-guidance">Position the reading inside the box. Make sure the numbers are lit, in focus, and not blocked by glare.</div>
+      <div class="scan-camera-wrap">
+        <video id="scan-video" playsinline autoplay muted></video>
+        <div class="scan-frame"></div>
+      </div>
+      <button class="scan-capture-btn" id="scan-capture-btn" aria-label="Capture photo"></button>
+      <div class="scan-status hidden" id="scan-camera-error"></div>
+      <button class="scan-manual-link" id="scan-manual-from-camera">Enter manually instead</button>
+    </div>
+
+    <!-- Step 3: processing -->
+    <div id="scan-step-processing" class="hidden">
+      <div class="scan-status"><div class="scan-spinner"></div>Reading the display…</div>
+    </div>
+
+    <!-- Step 4: review / confirm -->
+    <div id="scan-step-review" class="hidden">
+      <div id="scan-review-success" class="hidden">
+        <div class="scan-review-card">
+          <div class="scan-review-title">We detected</div>
+          <div class="scan-review-grid" id="scan-review-fields"></div>
+        </div>
+        <div class="scan-confirm-q">Is this correct?</div>
+        <div class="scan-review-actions">
+          <button class="save-btn" id="scan-use-btn" style="flex:1;">✓ Use these values</button>
+          <button class="btn-secondary" id="scan-retry-btn" style="flex:1;">Try again</button>
+        </div>
+        <button class="scan-manual-link" id="scan-manual-from-review">Enter manually instead</button>
+      </div>
+      <div id="scan-review-fail" class="hidden">
+        <div class="scan-fail-box">
+          <div class="sfb-title">We couldn't clearly read the device</div>
+          <div class="sfb-body">Try moving closer, reducing glare, or holding it steady.</div>
+        </div>
+        <div class="scan-review-actions">
+          <button class="save-btn" id="scan-fail-retry-btn" style="flex:1;">Try again</button>
+          <button class="btn-secondary" id="scan-fail-manual-btn" style="flex:1;">Enter manually</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="scan-canvas" class="hidden"></canvas>
+
+  <!-- ======================= SOMETHING CHANGED — DETAIL SCREEN ======================= -->
+  <div id="changed-detail-screen" class="hidden">
+    <button class="back-btn" id="back-from-changed-btn">← Back</button>
+    <div id="changed-detail-body"></div>
+  </div>
+
+  <!-- ======================= SOMETHING CHANGED — FULL LIST SCREEN (caregiver) ======================= -->
+  <div id="changed-list-screen" class="hidden">
+    <button class="back-btn" id="back-from-changed-list-btn">← Back</button>
+    <div class="settings-subhead" style="margin-top:0;padding-top:0;border-top:none;">Recent changes — <span id="changed-list-person-label">Father</span></div>
+    <div class="card" id="changed-list-card"></div>
+  </div>
+
+  <div class="settings-toggle" id="settings-toggle">⚙ Settings & accessibility</div>
+  <div class="settings-panel" id="settings-panel">
+    <div class="card">
+
+      <div class="settings-subhead">Accessibility</div>
+      <div class="a11y-row">
+        <span class="a11y-label">Text size</span>
+        <div class="seg" id="text-size-seg">
+          <button data-size="standard">Standard</button>
+          <button data-size="large">Large</button>
+          <button data-size="xlarge">Extra large</button>
+        </div>
+      </div>
+      <div class="a11y-row"><span class="a11y-label">High contrast</span><label class="switch"><input type="checkbox" id="hc-toggle"><span class="track"></span></label></div>
+      <div class="a11y-row"><span class="a11y-label">Reduce motion</span><label class="switch"><input type="checkbox" id="rm-toggle"><span class="track"></span></label></div>
+      <div class="a11y-row"><span class="a11y-label">Larger buttons</span><label class="switch"><input type="checkbox" id="lt-toggle"><span class="track"></span></label></div>
+
+      <div class="settings-subhead">Mode</div>
+      <div class="a11y-row">
+        <span class="a11y-label">App mode</span>
+        <div class="seg" id="mode-seg">
+          <button data-mode="caregiver">Caregiver</button>
+          <button data-mode="parent">Parent</button>
+        </div>
+      </div>
+      <div class="settings-hint">Parent Mode shows only a simple home screen with today's readings and one-tap quick actions. Caregiver Mode shows the full entry form, history, blood reports, and this settings panel.</div>
+
+      <div class="settings-subhead">Display names</div>
+      <label>Father's display name (optional)</label>
+      <input type="text" id="father-name-input" placeholder="Father">
+      <label>Mother's display name (optional)</label>
+      <input type="text" id="mother-name-input" placeholder="Mother">
+      <div class="settings-actions"><button class="btn-secondary" id="save-names-btn">Save names</button></div>
+
+      <div class="settings-subhead">Google Sheet sync</div>
+      <label>Sync URL (Apps Script Web App)</label>
+      <input type="text" id="webhook-input" placeholder="https://script.google.com/macros/s/.../exec">
+      <div class="settings-actions">
+        <button class="btn-secondary" id="save-settings-btn">Save URL</button>
+        <button class="btn-secondary" id="test-conn-btn">Test connection</button>
+      </div>
+      <div class="conn-status" id="conn-status"></div>
+      <div class="settings-hint">Every entry saves on this device first, then syncs automatically. If sync fails, entries stay marked "pending" and you can retry anytime.</div>
+      <div class="settings-actions" style="margin-top:16px;">
+        <button class="btn-secondary" id="export-csv-btn">Export CSV (both)</button>
+        <button class="btn-secondary" id="sync-all-btn">Sync all pending</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  let store = { father: [], mother: [], fatherBlood: [], motherBlood: [] };
+  let settings = { webhookUrl: '', mode: 'caregiver', accessibility: { textSize:'standard', highContrast:false, reduceMotion:false, largeTouch:false }, names:{ father:'', mother:'' } };
+  let selectedPerson = 'father';
+  let selectedPeriod = suggestPeriod();
+  let toggles = { bp:true, ox:true, weight:true, sugar:true };
+  let customParams = [];
+  let inParentQuickFlow = false;
+
+  const PARAM_DEFS = [
+    {key:'hb', name:'Hemoglobin (Hb)', unit:'g/dL'},
+    {key:'wbc', name:'WBC Count', unit:'/µL'},
+    {key:'rbc', name:'RBC Count', unit:'million/µL'},
+    {key:'platelet', name:'Platelet Count', unit:'lakh/µL'},
+    {key:'fbs', name:'Fasting Blood Sugar', unit:'mg/dL'},
+    {key:'ppbs', name:'Post-Meal Blood Sugar', unit:'mg/dL'},
+    {key:'hba1c', name:'HbA1c', unit:'%'},
+    {key:'creatinine', name:'Creatinine', unit:'mg/dL'},
+    {key:'urea', name:'Blood Urea', unit:'mg/dL'},
+    {key:'cholesterol', name:'Total Cholesterol', unit:'mg/dL'},
+    {key:'hdl', name:'HDL', unit:'mg/dL'},
+    {key:'ldl', name:'LDL', unit:'mg/dL'},
+    {key:'triglycerides', name:'Triglycerides', unit:'mg/dL'},
+    {key:'sgot', name:'SGOT (AST)', unit:'U/L'},
+    {key:'sgpt', name:'SGPT (ALT)', unit:'U/L'},
+    {key:'tsh', name:'TSH', unit:'µIU/mL'},
+    {key:'vitd', name:'Vitamin D', unit:'ng/mL'},
+    {key:'vitb12', name:'Vitamin B12', unit:'pg/mL'},
+  ];
+
+  function suggestPeriod(){ const h = new Date().getHours(); if(h < 12) return 'morning'; if(h < 17) return 'afternoon'; return 'night'; }
+  function personName(p){ return (settings.names && settings.names[p]) ? settings.names[p] : (p.charAt(0).toUpperCase()+p.slice(1)); }
+
+  // ---------- Persistence ----------
+  function loadStore(){
+    try{ const raw = localStorage.getItem('vitals-entries'); if(raw) store = JSON.parse(raw); }catch(e){}
+    try{ const raw2 = localStorage.getItem('vitals-settings'); if(raw2) settings = Object.assign(settings, JSON.parse(raw2)); }catch(e){}
+    if(!store.father) store.father = [];
+    if(!store.mother) store.mother = [];
+    if(!store.fatherBlood) store.fatherBlood = [];
+    if(!store.motherBlood) store.motherBlood = [];
+    if(!settings.accessibility) settings.accessibility = { textSize:'standard', highContrast:false, reduceMotion:false, largeTouch:false };
+    if(!settings.names) settings.names = { father:'', mother:'' };
+
+    document.getElementById('webhook-input').value = settings.webhookUrl || '';
+    document.getElementById('father-name-input').value = settings.names.father || '';
+    document.getElementById('mother-name-input').value = settings.names.mother || '';
+    applyAccessibility();
+    applyNames();
+    setMode(settings.mode || 'caregiver', true);
+    renderCounts(); renderHistory(); renderBloodHistory();
+  }
+  function saveStoreToDisk(){ try{ localStorage.setItem('vitals-entries', JSON.stringify(store)); }catch(e){} }
+  function saveSettingsToDisk(){ try{ localStorage.setItem('vitals-settings', JSON.stringify(settings)); }catch(e){} }
+
+  // ---------- Accessibility ----------
+  function applyAccessibility(){
+    const a = settings.accessibility;
+    document.body.classList.remove('text-large','text-xlarge');
+    if(a.textSize === 'large') document.body.classList.add('text-large');
+    if(a.textSize === 'xlarge') document.body.classList.add('text-xlarge');
+    document.body.classList.toggle('high-contrast', !!a.highContrast);
+    document.body.classList.toggle('reduce-motion', !!a.reduceMotion);
+    document.body.classList.toggle('large-touch', !!a.largeTouch);
+    document.querySelectorAll('#text-size-seg button').forEach(b=>b.classList.toggle('active', b.dataset.size === a.textSize));
+    document.getElementById('hc-toggle').checked = !!a.highContrast;
+    document.getElementById('rm-toggle').checked = !!a.reduceMotion;
+    document.getElementById('lt-toggle').checked = !!a.largeTouch;
+  }
+  document.querySelectorAll('#text-size-seg button').forEach(b=>{
+    b.addEventListener('click', ()=>{ settings.accessibility.textSize = b.dataset.size; applyAccessibility(); saveSettingsToDisk(); });
+  });
+  document.getElementById('hc-toggle').addEventListener('change', e=>{ settings.accessibility.highContrast = e.target.checked; applyAccessibility(); saveSettingsToDisk(); });
+  document.getElementById('rm-toggle').addEventListener('change', e=>{ settings.accessibility.reduceMotion = e.target.checked; applyAccessibility(); saveSettingsToDisk(); });
+  document.getElementById('lt-toggle').addEventListener('change', e=>{ settings.accessibility.largeTouch = e.target.checked; applyAccessibility(); saveSettingsToDisk(); });
+
+  function applyNames(){
+    document.getElementById('father-label').textContent = personName('father');
+    document.getElementById('mother-label').textContent = personName('mother');
+    document.getElementById('father-avatar').textContent = personName('father').charAt(0).toUpperCase();
+    document.getElementById('mother-avatar').textContent = personName('mother').charAt(0).toUpperCase();
+  }
+  document.getElementById('save-names-btn').addEventListener('click', ()=>{
+    settings.names.father = document.getElementById('father-name-input').value.trim();
+    settings.names.mother = document.getElementById('mother-name-input').value.trim();
+    saveSettingsToDisk(); applyNames(); renderParentHome();
+    const nameLbl = document.getElementById('history-person-label'); if(nameLbl) nameLbl.textContent = personName(selectedPerson);
+  });
+
+  // ---------- Mode ----------
+  function setMode(mode, isInit){
+    settings.mode = mode;
+    document.querySelectorAll('#mode-seg button').forEach(b=>b.classList.toggle('active', b.dataset.mode === mode));
+    document.getElementById('settings-toggle').classList.toggle('hidden', mode === 'parent');
+    document.getElementById('settings-panel').classList.remove('open');
+    if(mode === 'parent'){
+      inParentQuickFlow = false;
+      showScreen('parent-home');
+    } else {
+      showScreen('vitals');
+    }
+    if(!isInit) saveSettingsToDisk();
+  }
+  document.querySelectorAll('#mode-seg button').forEach(b=>{ b.addEventListener('click', ()=>setMode(b.dataset.mode)); });
+  document.getElementById('ph-switch-caregiver').addEventListener('click', ()=>setMode('caregiver'));
+
+  // ---------- Screen switching ----------
+  function showScreen(name){
+    document.getElementById('parent-home-screen').classList.toggle('hidden', name !== 'parent-home');
+    document.getElementById('vitals-screen').classList.toggle('hidden', name !== 'vitals');
+    document.getElementById('bloodreport-screen').classList.toggle('hidden', name !== 'bloodreport');
+    document.getElementById('scan-screen').classList.toggle('hidden', name !== 'scan');
+    document.getElementById('changed-detail-screen').classList.toggle('hidden', name !== 'changed-detail');
+    document.getElementById('changed-list-screen').classList.toggle('hidden', name !== 'changed-list');
+    if(name !== 'scan') stopCamera();
+    if(name === 'parent-home') renderParentHome();
+    if(name === 'bloodreport'){ updateBrHeader(); renderParamList(); renderBloodHistory(); }
+    if(name === 'vitals') renderChangedCard('cg-changed-slot', selectedPerson, false);
+    window.scrollTo(0,0);
+  }
+
+  // ---------- Person switch ----------
+  document.querySelectorAll('.person-card').forEach(card=>{
+    card.addEventListener('click', ()=>{
+      selectedPerson = card.dataset.person;
+      document.querySelectorAll('.person-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      const nm = personName(selectedPerson);
+      document.getElementById('history-person-label').textContent = nm;
+      document.getElementById('br-history-person-label').textContent = nm;
+      renderHistory(); renderBloodHistory();
+      if(settings.mode === 'parent') renderParentHome(); else { updateBrHeader(); renderChangedCard('cg-changed-slot', selectedPerson, false); }
+    });
+  });
+
+  // ---------- Period pills ----------
+  function renderPeriodPills(){
+    document.querySelectorAll('.pill').forEach(p=>{
+      p.classList.toggle('active', p.dataset.period === selectedPeriod);
+      p.innerHTML = p.dataset.period.charAt(0).toUpperCase()+p.dataset.period.slice(1) +
+        (p.dataset.period === suggestPeriod() ? ' <span class="suggested-dot" title="Suggested now"></span>' : '');
+    });
+  }
+  document.querySelectorAll('.pill').forEach(p=>{ p.addEventListener('click', ()=>{ selectedPeriod = p.dataset.period; renderPeriodPills(); }); });
+
+  // ---------- Vital toggles ----------
+  document.querySelectorAll('[data-toggle]').forEach(sw=>{
+    sw.addEventListener('change', ()=>{
+      const key = sw.dataset.toggle; toggles[key] = sw.checked;
+      const card = document.querySelector(`.card[data-vital="${key}"]`);
+      card.classList.toggle('off', !sw.checked);
+      updateAverages();
+    });
+  });
+
+  const RANGES = { sys:[70,220], dia:[40,140], spo2:[70,100] };
+  function checkFlag(field, val){
+    const key = field.includes('sys') ? 'sys' : field.includes('dia') ? 'dia' : field.includes('spo2') ? 'spo2' : null;
+    if(!key || val === '') return false;
+    const [lo,hi] = RANGES[key];
+    return Number(val) < lo || Number(val) > hi;
+  }
+  function getVal(field){ const el = document.querySelector(`[data-field="${field}"]`); return el ? el.value.trim() : ''; }
+  function avgOf(vals){ const nums = vals.filter(v=>v!=='').map(Number); if(nums.length === 0) return null; return Math.round((nums.reduce((a,b)=>a+b,0)/nums.length)*10)/10; }
+  function updateAverages(){
+    const sys=[1,2,3].map(n=>getVal('bp-sys-'+n)), dia=[1,2,3].map(n=>getVal('bp-dia-'+n)), bpPulse=[1,2,3].map(n=>getVal('bp-pulse-'+n));
+    const spo2=[1,2,3].map(n=>getVal('ox-spo2-'+n)), oxPulse=[1,2,3].map(n=>getVal('ox-pulse-'+n));
+    const sysAvg=avgOf(sys), diaAvg=avgOf(dia), bpPulseAvg=avgOf(bpPulse), spo2Avg=avgOf(spo2), oxPulseAvg=avgOf(oxPulse);
+    document.getElementById('bp-avg-display').innerHTML = (sysAvg!==null && diaAvg!==null) ? `${sysAvg}/${diaAvg}<span class="unit">mmHg</span>` : `—<span class="unit">mmHg</span>`;
+    document.getElementById('bp-pulse-avg-display').innerHTML = bpPulseAvg!==null ? `${bpPulseAvg}<span class="unit">bpm</span>` : `—<span class="unit">bpm</span>`;
+    document.getElementById('spo2-avg-display').innerHTML = spo2Avg!==null ? `${spo2Avg}<span class="unit">%</span>` : `—<span class="unit">%</span>`;
+    document.getElementById('ox-pulse-avg-display').innerHTML = oxPulseAvg!==null ? `${oxPulseAvg}<span class="unit">bpm</span>` : `—<span class="unit">bpm</span>`;
+  }
+  document.querySelectorAll('input[data-field]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{ inp.classList.toggle('flag', checkFlag(inp.dataset.field, inp.value.trim())); updateAverages(); });
+  });
+
+  function anyToggleOn(){ return toggles.bp || toggles.ox || toggles.weight || toggles.sugar; }
+  function sectionFilled(fields){ return fields.every(f => getVal(f) !== ''); }
+  function allRequiredFilled(){
+    if(!anyToggleOn()) return false;
+    if(toggles.bp){ const f=[]; [1,2,3].forEach(n=>f.push('bp-sys-'+n,'bp-dia-'+n,'bp-pulse-'+n)); if(!sectionFilled(f)) return false; }
+    if(toggles.ox){ const f=[]; [1,2,3].forEach(n=>f.push('ox-spo2-'+n,'ox-pulse-'+n)); if(!sectionFilled(f)) return false; }
+    if(toggles.weight){ if(!sectionFilled(['weight-value'])) return false; }
+    if(toggles.sugar){ if(!sectionFilled(['sugar-value'])) return false; }
+    return true;
+  }
+
+  function buildEntry(){
+    const now = new Date();
+    let out = { id:'e'+now.getTime()+Math.random().toString(36).slice(2,7), person:selectedPerson, date:now.toISOString().slice(0,10), time:now.toTimeString().slice(0,5), period:selectedPeriod, synced:false,
+      sysAvg:'', diaAvg:'', bpPulseAvg:'', bpRaw:'', spo2Avg:'', oxPulseAvg:'', spo2Raw:'', weightValue:'', weightUnit:'', sugarValue:'', sugarContext:'', sugarUnit:'' };
+    if(toggles.bp){
+      const sys=[1,2,3].map(n=>Number(getVal('bp-sys-'+n))), dia=[1,2,3].map(n=>Number(getVal('bp-dia-'+n))), bpPulse=[1,2,3].map(n=>Number(getVal('bp-pulse-'+n)));
+      out.sysAvg=avgOf(sys.map(String)); out.diaAvg=avgOf(dia.map(String)); out.bpPulseAvg=avgOf(bpPulse.map(String));
+      out.bpRaw = sys.map((s,i)=>`${s}/${dia[i]}/${bpPulse[i]}`).join('  ');
+    }
+    if(toggles.ox){
+      const spo2=[1,2,3].map(n=>Number(getVal('ox-spo2-'+n))), oxPulse=[1,2,3].map(n=>Number(getVal('ox-pulse-'+n)));
+      out.spo2Avg=avgOf(spo2.map(String)); out.oxPulseAvg=avgOf(oxPulse.map(String));
+      out.spo2Raw = spo2.map((s,i)=>`${s}/${oxPulse[i]}`).join('  ');
+    }
+    if(toggles.weight){ out.weightValue = getVal('weight-value'); out.weightUnit = getVal('weight-unit') || 'kg'; }
+    if(toggles.sugar){ out.sugarValue = getVal('sugar-value'); out.sugarContext = getVal('sugar-context') || 'Random'; out.sugarUnit = getVal('sugar-unit') || 'mg/dL'; }
+    return out;
+  }
+  function clearVitalInputs(){ document.querySelectorAll('#vitals-screen input[data-field]').forEach(inp=>{ inp.value=''; inp.classList.remove('flag'); }); updateAverages(); }
+
+  const statusEl = document.getElementById('save-status');
+  const saveBtn = document.getElementById('save-btn');
+  saveBtn.addEventListener('click', async ()=>{
+    if(!anyToggleOn()){ statusEl.textContent = 'Turn on at least one vital to save.'; statusEl.className = 'save-status warn'; return; }
+    if(!allRequiredFilled()){ statusEl.textContent = 'Fill in the readings for every vital you left switched on.'; statusEl.className = 'save-status warn'; return; }
+    saveBtn.disabled = true;
+    const entry = buildEntry();
+    store[selectedPerson].unshift(entry);
+    saveStoreToDisk();
+    renderCounts(); renderHistory(); clearVitalInputs();
+    statusEl.textContent = 'Saved to this device.'; statusEl.className = 'save-status ok';
+    if(settings.webhookUrl){
+      const ok = await syncVitalsEntry(entry);
+      statusEl.textContent = ok ? 'Saved and synced to Google Sheet.' : 'Saved on device — sheet sync failed, retry from history.';
+      statusEl.className = ok ? 'save-status ok' : 'save-status warn';
+      renderHistory();
+    }
+    saveBtn.disabled = false;
+    if(inParentQuickFlow){
+      setTimeout(()=>{ exitParentFlow(); showScreen(settings.mode === 'parent' ? 'parent-home' : 'vitals'); }, 700);
+    }
+  });
+
+  async function syncVitalsEntry(entry){
+    if(!settings.webhookUrl) return false;
+    try{
+      await fetch(settings.webhookUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({type:'vitals'}, entry)) });
+      entry.synced = true;
+      const list = store[entry.person]; const idx = list.findIndex(e=>e.id===entry.id); if(idx>-1) list[idx] = entry;
+      saveStoreToDisk(); return true;
+    }catch(e){ console.error('Sync failed', e); return false; }
+  }
+
+  function renderCounts(){
+    document.getElementById('father-count-label').textContent = store.father.length + ' logged';
+    document.getElementById('mother-count-label').textContent = store.mother.length + ' logged';
+  }
+  function summarizeEntry(e){
+    const parts = [];
+    if(e.sysAvg!=='' && e.sysAvg!=null) parts.push(`${e.sysAvg}/${e.diaAvg}`);
+    if(e.spo2Avg!=='' && e.spo2Avg!=null) parts.push(`${e.spo2Avg}%`);
+    if(e.weightValue!=='') parts.push(`${e.weightValue}${e.weightUnit}`);
+    if(e.sugarValue!=='') parts.push(`${e.sugarValue} sugar`);
+    return parts.join(' · ') || '—';
+  }
+  function renderHistory(){
+    const list = store[selectedPerson].slice(0,6);
+    const card = document.getElementById('history-card');
+    if(list.length === 0){ card.innerHTML = '<div class="empty-hist">No readings logged yet.</div>'; return; }
+    card.innerHTML = list.map(e=>`
+      <div class="history-item">
+        <div class="hi-left"><div class="hi-date">${e.date}</div><div class="hi-period">${e.period} · ${e.time}</div></div>
+        <div><div class="hi-vitals">${summarizeEntry(e)}</div>
+          <div class="hi-sync ${e.synced ? 'synced':'pending'}" data-retry="${e.id}">${e.synced ? '✓ Synced' : '⟳ Retry sync'}</div></div>
+      </div>`).join('');
+    card.querySelectorAll('.hi-sync.pending').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const entry = store[selectedPerson].find(e=>e.id===el.dataset.retry); if(!entry) return;
+        el.textContent = 'Syncing…'; await syncVitalsEntry(entry); renderHistory();
+      });
+    });
+  }
+
+  // ================= PARENT MODE HOME =================
+  function getLatestValue(person, field){
+    const list = store[person] || [];
+    for(const e of list){ if(e[field] !== '' && e[field] != null){ return e; } }
+    return null;
+  }
+  function timeAgoLabel(e){ if(!e) return ''; return `${e.date} · ${e.time}`; }
+
+  function renderParentHome(){
+    const nm = personName(selectedPerson);
+    const h = new Date().getHours();
+    const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+    document.getElementById('ph-greeting').textContent = `${greet}, ${nm}`;
+    document.getElementById('ph-date').textContent = new Date().toDateString();
+    renderChangedCard('ph-changed-slot', selectedPerson, true);
+
+    const bpE = getLatestValue(selectedPerson, 'sysAvg');
+    const sugarE = getLatestValue(selectedPerson, 'sugarValue');
+    const oxE = getLatestValue(selectedPerson, 'spo2Avg');
+    const wtE = getLatestValue(selectedPerson, 'weightValue');
+
+    const grid = document.getElementById('ph-grid');
+    grid.innerHTML =
+      phMetric('Blood pressure', bpE ? `${bpE.sysAvg}/${bpE.diaAvg}` : null, 'mmHg', bpE ? timeAgoLabel(bpE) : 'Not logged yet') +
+      phMetric('Blood sugar', sugarE ? sugarE.sugarValue : null, sugarE ? sugarE.sugarUnit : '', sugarE ? (sugarE.sugarContext + ' · ' + timeAgoLabel(sugarE)) : 'Not logged yet') +
+      phMetric('Oxygen level', oxE ? oxE.spo2Avg : null, '%', oxE ? timeAgoLabel(oxE) : 'Not logged yet') +
+      phMetric('Weight', wtE ? wtE.weightValue : null, wtE ? wtE.weightUnit : '', wtE ? timeAgoLabel(wtE) : 'Not logged yet');
+  }
+  function phMetric(label, value, unit, sub){
+    const empty = value === null || value === undefined;
+    return `<div class="ph-metric ${empty?'empty':''}">
+      <div class="ph-m-label">${label}</div>
+      <div class="ph-m-value">${empty ? 'Not logged yet' : value + (unit ? ` <span class="ph-unit">${unit}</span>` : '')}</div>
+      <div class="ph-m-sub">${empty ? '' : sub}</div>
+    </div>`;
+  }
+
+  function enterParentFlow(vitalKey){
+    inParentQuickFlow = true;
+    toggles = { bp:false, ox:false, weight:false, sugar:false };
+    if(vitalKey) toggles[vitalKey] = true;
+    document.querySelectorAll('[data-toggle]').forEach(sw=>{ sw.checked = toggles[sw.dataset.toggle]; sw.dispatchEvent(new Event('change')); });
+    document.querySelectorAll('.card[data-vital]').forEach(c=>{ c.classList.toggle('hidden', c.dataset.vital !== vitalKey); });
+    document.getElementById('goto-bloodreport-btn').classList.add('hidden');
+    document.getElementById('cg-scan-btn').classList.add('hidden');
+    document.getElementById('caregiver-history-block').classList.add('hidden');
+    const backBtn = document.getElementById('parent-flow-back');
+    backBtn.textContent = settings.mode === 'parent' ? '← Back home' : '← Back';
+    backBtn.classList.remove('hidden');
+  }
+  function exitParentFlow(){
+    inParentQuickFlow = false;
+    toggles = { bp:true, ox:true, weight:true, sugar:true };
+    document.querySelectorAll('[data-toggle]').forEach(sw=>{ sw.checked = true; sw.dispatchEvent(new Event('change')); });
+    document.querySelectorAll('.card[data-vital]').forEach(c=>{ c.classList.remove('hidden'); });
+    document.getElementById('goto-bloodreport-btn').classList.remove('hidden');
+    document.getElementById('cg-scan-btn').classList.remove('hidden');
+    document.getElementById('caregiver-history-block').classList.remove('hidden');
+    document.getElementById('parent-flow-back').classList.add('hidden');
+    document.getElementById('scan-again-btn').classList.add('hidden');
+    clearVitalInputs();
+  }
+  document.getElementById('parent-flow-back').addEventListener('click', ()=>{ exitParentFlow(); showScreen(settings.mode === 'parent' ? 'parent-home' : 'vitals'); });
+
+  document.querySelectorAll('[data-quick]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const key = btn.dataset.quick;
+      if(key === 'bloodreport'){
+        inParentQuickFlow = true;
+        showScreen('bloodreport');
+        document.getElementById('caregiver-br-history-block').classList.add('hidden');
+        const backBtn = document.getElementById('back-to-vitals-btn');
+        backBtn.dataset.parentFlow = '1';
+        return;
+      }
+      showScreen('vitals');
+      enterParentFlow(key);
+    });
+  });
+
+  // ================= BLOOD REPORT SCREEN =================
+  function updateBrHeader(){
+    const nm = personName(selectedPerson);
+    document.getElementById('br-person-name').textContent = `${nm} — Blood Report`;
+    document.getElementById('br-avatar').textContent = nm.charAt(0).toUpperCase();
+    const header = document.getElementById('br-header');
+    header.classList.remove('father','mother'); header.classList.add(selectedPerson);
+    document.getElementById('br-date-label').textContent = new Date().toDateString();
+  }
+  document.getElementById('goto-bloodreport-btn').addEventListener('click', ()=>{ showScreen('bloodreport'); });
+  document.getElementById('back-to-vitals-btn').addEventListener('click', ()=>{
+    const backBtn = document.getElementById('back-to-vitals-btn');
+    if(backBtn.dataset.parentFlow === '1'){
+      backBtn.dataset.parentFlow = '';
+      document.getElementById('caregiver-br-history-block').classList.remove('hidden');
+      showScreen('parent-home');
+    } else {
+      showScreen('vitals');
+    }
+  });
+
+  function renderParamList(){
+    const container = document.getElementById('param-list');
+    container.innerHTML = PARAM_DEFS.map(p=>`
+      <div class="param-row" id="row-${p.key}">
+        <input type="checkbox" class="p-check" data-param-check="${p.key}">
+        <div class="p-name">${p.name}</div>
+        <div class="p-value"><input type="number" inputmode="decimal" step="0.01" data-param-value="${p.key}" placeholder="Value"></div>
+        <div class="p-unit"><input type="text" data-param-unit="${p.key}" value="${p.unit}"></div>
+      </div>`).join('');
+    container.querySelectorAll('[data-param-check]').forEach(cb=>{
+      cb.addEventListener('change', ()=>{ document.getElementById('row-'+cb.dataset.paramCheck).classList.toggle('disabled', !cb.checked); });
+    });
+  }
+  document.getElementById('add-custom-param-btn').addEventListener('click', ()=>{
+    const id = 'c'+Date.now(); customParams.push(id);
+    const row = document.createElement('div'); row.className = 'custom-param-row'; row.id = 'custom-'+id;
+    row.innerHTML = `<input type="text" placeholder="Parameter name" data-custom-name="${id}">
+      <input type="number" inputmode="decimal" step="0.01" placeholder="Value" data-custom-value="${id}">
+      <input type="text" placeholder="Unit" data-custom-unit="${id}" style="flex:0.7;">
+      <button class="remove-x" data-remove="${id}">×</button>`;
+    document.getElementById('custom-param-list').appendChild(row);
+    row.querySelector('[data-remove]').addEventListener('click', ()=>{ customParams = customParams.filter(c=>c!==id); row.remove(); });
+  });
+  function collectBloodReportParams(){
+    const params = [];
+    PARAM_DEFS.forEach(p=>{
+      const cb = document.querySelector(`[data-param-check="${p.key}"]`);
+      const val = document.querySelector(`[data-param-value="${p.key}"]`).value.trim();
+      const unit = document.querySelector(`[data-param-unit="${p.key}"]`).value.trim();
+      if(cb.checked && val !== ''){ params.push({name:p.name, value:val, unit:unit}); }
+    });
+    customParams.forEach(id=>{
+      const nameEl = document.querySelector(`[data-custom-name="${id}"]`), valEl = document.querySelector(`[data-custom-value="${id}"]`), unitEl = document.querySelector(`[data-custom-unit="${id}"]`);
+      if(nameEl && valEl && nameEl.value.trim() !== '' && valEl.value.trim() !== ''){ params.push({name:nameEl.value.trim(), value:valEl.value.trim(), unit: unitEl ? unitEl.value.trim() : ''}); }
+    });
+    return params;
+  }
+  function clearBloodReportForm(){
+    document.querySelectorAll('#param-list input[type=checkbox]').forEach(cb=>{ cb.checked=false; document.getElementById('row-'+cb.dataset.paramCheck).classList.remove('disabled'); });
+    document.querySelectorAll('#param-list input[type=number]').forEach(inp=>inp.value='');
+    document.getElementById('custom-param-list').innerHTML = ''; customParams = [];
+  }
+  const brStatusEl = document.getElementById('br-save-status');
+  document.getElementById('save-br-btn').addEventListener('click', async ()=>{
+    const params = collectBloodReportParams();
+    if(params.length === 0){ brStatusEl.textContent = 'Tick and fill in at least one parameter.'; brStatusEl.className = 'save-status warn'; return; }
+    const now = new Date();
+    const report = { id:'br'+now.getTime()+Math.random().toString(36).slice(2,7), reportId:'r'+now.getTime(), person:selectedPerson, date:now.toISOString().slice(0,10), time:now.toTimeString().slice(0,5), parameters: params, synced:false };
+    const storeKey = selectedPerson === 'father' ? 'fatherBlood' : 'motherBlood';
+    store[storeKey].unshift(report); saveStoreToDisk(); renderBloodHistory(); clearBloodReportForm();
+    brStatusEl.textContent = 'Saved to this device.'; brStatusEl.className = 'save-status ok';
+    if(settings.webhookUrl){
+      const ok = await syncBloodReport(report);
+      brStatusEl.textContent = ok ? 'Saved and synced to Google Sheet.' : 'Saved on device — sheet sync failed, retry from history.';
+      brStatusEl.className = ok ? 'save-status ok' : 'save-status warn';
+      renderBloodHistory();
+    }
+    if(inParentQuickFlow){
+      setTimeout(()=>{
+        inParentQuickFlow = false;
+        document.getElementById('caregiver-br-history-block').classList.remove('hidden');
+        document.getElementById('back-to-vitals-btn').dataset.parentFlow = '';
+        showScreen('parent-home');
+      }, 700);
+    }
+  });
+  async function syncBloodReport(report){
+    if(!settings.webhookUrl) return false;
+    try{
+      await fetch(settings.webhookUrl, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify(Object.assign({type:'bloodreport'}, report)) });
+      report.synced = true;
+      const storeKey = report.person === 'father' ? 'fatherBlood' : 'motherBlood';
+      const idx = store[storeKey].findIndex(r=>r.id===report.id); if(idx>-1) store[storeKey][idx] = report;
+      saveStoreToDisk(); return true;
+    }catch(e){ console.error('Blood report sync failed', e); return false; }
+  }
+  function renderBloodHistory(){
+    const storeKey = selectedPerson === 'father' ? 'fatherBlood' : 'motherBlood';
+    const list = (store[storeKey] || []).slice(0,4);
+    const card = document.getElementById('br-history-card');
+    if(list.length === 0){ card.innerHTML = '<div class="empty-hist">No blood reports logged yet.</div>'; return; }
+    card.innerHTML = list.map(r=>`
+      <div class="history-item">
+        <div class="hi-left"><div class="hi-date">${r.date}</div><div class="hi-period">${r.parameters.length} parameter${r.parameters.length===1?'':'s'}</div></div>
+        <div><div class="hi-vitals">${r.parameters.slice(0,2).map(p=>p.name+': '+p.value).join(', ')}${r.parameters.length>2?'…':''}</div>
+          <div class="hi-sync ${r.synced ? 'synced':'pending'}" data-retry-br="${r.id}">${r.synced ? '✓ Synced' : '⟳ Retry sync'}</div></div>
+      </div>`).join('');
+    card.querySelectorAll('.hi-sync.pending').forEach(el=>{
+      el.addEventListener('click', async ()=>{
+        const report = store[storeKey].find(r=>r.id===el.dataset.retryBr); if(!report) return;
+        el.textContent = 'Syncing…'; await syncBloodReport(report); renderBloodHistory();
+      });
+    });
+  }
+
+  // ================= SOMETHING CHANGED =================
+  const DAY_MS = 24*60*60*1000;
+  function daysAgo(dateStr){ return (Date.now() - new Date(dateStr+'T00:00:00').getTime()) / DAY_MS; }
+  function toKg(val, unit){ const n = Number(val); return unit === 'lb' ? n / 2.20462 : n; }
+
+  function seriesFor(person, field, opts){
+    opts = opts || {};
+    const list = (store[person] || []).filter(e => e[field] !== '' && e[field] != null);
+    if(opts.sameContextAs){
+      const ctxField = opts.contextField;
+      return list.filter(e => e[ctxField] === opts.sameContextAs);
+    }
+    return list;
+  }
+  function avg(nums){ if(nums.length===0) return null; return nums.reduce((a,b)=>a+b,0)/nums.length; }
+  function round1(n){ return Math.round(n*10)/10; }
+
+  function evalBP(person){
+    const list = seriesFor(person, 'sysAvg');
+    if(list.length < 3) return null;
+    const current = list[0];
+    const history = list.slice(1, 15);
+    const baseSys = avg(history.map(e=>Number(e.sysAvg)));
+    const baseDia = avg(history.map(e=>Number(e.diaAvg)));
+    if(baseSys === null) return null;
+    const diffSys = Number(current.sysAvg) - baseSys;
+    const diffDia = Number(current.diaAvg) - baseDia;
+    const above = history.slice(0,5).filter(e=>Number(e.sysAvg) > baseSys).length;
+    let category = 'stable';
+    if(diffSys>=15 || diffDia>=10 || Number(current.sysAvg)>=160 || Number(current.diaAvg)>=100) category='attention';
+    else if(diffSys>=8 || diffDia>=6 || above>=3) category='watch';
+    return {
+      key:'bp', label:'Blood pressure', category,
+      current:`${current.sysAvg}/${current.diaAvg}`, baseline:`${round1(baseSys)}/${round1(baseDia)}`,
+      diffText: (diffSys>=0?'+':'')+round1(diffSys)+'/'+(diffDia>=0?'+':'')+round1(diffDia),
+      cardText: category==='stable' ? 'Blood pressure looks consistent with the recent pattern.' :
+        `Blood pressure has been ${diffSys>=0?'higher':'lower'} than the recent average.`,
+      whatChanged: `Currently ${current.sysAvg}/${current.diaAvg}, compared with a recent average of ${round1(baseSys)}/${round1(baseDia)}. Above the recent average on ${above} of the last 5 readings.`,
+      series: list.slice(0,8).reverse().map(e=>Number(e.sysAvg)), unit:'mmHg'
+    };
+  }
+  function evalSugar(person){
+    const latestAny = seriesFor(person,'sugarValue')[0];
+    if(!latestAny) return null;
+    const ctx = latestAny.sugarContext;
+    const list = seriesFor(person, 'sugarValue', {sameContextAs: ctx, contextField:'sugarContext'});
+    if(list.length < 3) return null;
+    const current = list[0];
+    const history = list.slice(1, 15);
+    const base = avg(history.map(e=>Number(e.sugarValue)));
+    if(base === null) return null;
+    const diff = Number(current.sugarValue) - base;
+    let category = 'stable';
+    if(Math.abs(diff)>=40 || Number(current.sugarValue)<70 || Number(current.sugarValue)>250) category='attention';
+    else if(Math.abs(diff)>=20) category='watch';
+    return {
+      key:'sugar', label:'Blood sugar', category,
+      current:`${current.sugarValue}`, baseline:`${round1(base)}`, diffText:(diff>=0?'+':'')+round1(diff),
+      cardText: category==='stable' ? 'Blood sugar looks consistent with the recent pattern.' :
+        `Blood sugar (${ctx}) has been ${diff>=0?'higher':'lower'} than the recent average.`,
+      whatChanged: `Currently ${current.sugarValue} ${current.sugarUnit} (${ctx}), compared with a recent ${ctx.toLowerCase()} average of ${round1(base)} ${current.sugarUnit}.`,
+      series: list.slice(0,8).reverse().map(e=>Number(e.sugarValue)), unit: current.sugarUnit
+    };
+  }
+  function evalSpO2(person){
+    const list = seriesFor(person, 'spo2Avg');
+    if(list.length < 3) return null;
+    const current = list[0];
+    const history = list.slice(1, 15);
+    const base = avg(history.map(e=>Number(e.spo2Avg)));
+    if(base === null) return null;
+    const diff = base - Number(current.spo2Avg);
+    let category = 'stable';
+    if(diff>=5 || Number(current.spo2Avg)<=90) category='attention';
+    else if(diff>=3 || Number(current.spo2Avg)<=94) category='watch';
+    return {
+      key:'spo2', label:'Oxygen level', category,
+      current:`${current.spo2Avg}%`, baseline:`${round1(base)}%`, diffText:(diff<=0?'+':'-')+round1(Math.abs(diff))+'%',
+      cardText: category==='stable' ? 'Oxygen level looks consistent with the recent pattern.' : 'Oxygen level has been lower than the recent average.',
+      whatChanged: `Currently ${current.spo2Avg}%, compared with a recent average of ${round1(base)}%.`,
+      series: list.slice(0,8).reverse().map(e=>Number(e.spo2Avg)), unit:'%'
+    };
+  }
+  function evalWeight(person){
+    const list = seriesFor(person, 'weightValue').filter(e=>daysAgo(e.date) <= 30);
+    if(list.length < 2) return null;
+    const current = list[0];
+    const currentKg = toKg(current.weightValue, current.weightUnit);
+    const week = list.filter(e => daysAgo(e.date) <= 7 && e !== current);
+    const history = week.length ? week : list.slice(1);
+    const baseKg = avg(history.map(e=>toKg(e.weightValue, e.weightUnit)));
+    if(baseKg === null) return null;
+    const diffKg = currentKg - baseKg;
+    let category = 'stable';
+    if(Math.abs(diffKg)>=3) category='attention';
+    else if(Math.abs(diffKg)>=1.5) category='watch';
+    const unit = current.weightUnit;
+    const displayDiff = unit==='lb' ? diffKg*2.20462 : diffKg;
+    return {
+      key:'weight', label:'Weight', category,
+      current:`${current.weightValue} ${unit}`, baseline:`${round1(unit==='lb'?baseKg*2.20462:baseKg)} ${unit}`,
+      diffText:(displayDiff>=0?'+':'')+round1(displayDiff)+' '+unit,
+      cardText: category==='stable' ? 'Weight looks consistent with the recent pattern.' :
+        `Weight has ${diffKg>=0?'increased':'decreased'} by ${round1(Math.abs(displayDiff))} ${unit} over the last 7 days.`,
+      whatChanged: `Currently ${current.weightValue} ${unit}, compared with a recent average of ${round1(unit==='lb'?baseKg*2.20462:baseKg)} ${unit}.`,
+      series: list.slice(0,8).reverse().map(e=>toKg(e.weightValue,e.weightUnit)), unit: unit
+    };
+  }
+  function evalBloodReports(person){
+    const storeKey = person === 'father' ? 'fatherBlood' : 'motherBlood';
+    const reports = store[storeKey] || [];
+    if(reports.length < 2) return [];
+    const latest = reports[0], prev = reports[1];
+    const out = [];
+    latest.parameters.forEach(p=>{
+      const match = prev.parameters.find(q=>q.name === p.name);
+      if(!match) return;
+      const cur = Number(p.value), old = Number(match.value);
+      if(isNaN(cur) || isNaN(old) || old === 0) return;
+      const pct = ((cur - old) / Math.abs(old)) * 100;
+      let category = 'stable';
+      if(Math.abs(pct) >= 30) category='attention'; else if(Math.abs(pct) >= 15) category='watch';
+      if(category === 'stable') return;
+      out.push({
+        key:'blood-'+p.name, label:p.name, category,
+        current:`${p.value} ${p.unit}`, baseline:`${match.value} ${match.unit}`,
+        diffText:(pct>=0?'+':'')+round1(pct)+'%',
+        cardText:`${p.name} has changed by ${round1(Math.abs(pct))}% since the last report.`,
+        whatChanged:`Currently ${p.value} ${p.unit}, compared with ${match.value} ${match.unit} in the previous report.`,
+        series:[old, cur], unit:p.unit, isBloodReport:true
+      });
+    });
+    return out;
+  }
+
+  function computeChanges(person){
+    const results = [evalBP(person), evalSugar(person), evalSpO2(person), evalWeight(person)].filter(Boolean);
+    return results.concat(evalBloodReports(person));
+  }
+  const severityRank = { attention:2, watch:1, stable:0 };
+  let changeCache = {};
+
+  function sparkline(values, unit){
+    if(!values || values.length < 2) return '';
+    const w=280,h=64,pad=6;
+    const min=Math.min(...values), max=Math.max(...values);
+    const range = (max-min) || 1;
+    const pts = values.map((v,i)=>{
+      const x = pad + (i/(values.length-1))*(w-pad*2);
+      const y = h - pad - ((v-min)/range)*(h-pad*2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    return `<svg class="cd-sparkline" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+      <polyline points="${pts.join(' ')}" fill="none" stroke="var(--afternoon)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      ${pts.map(p=>{const [x,y]=p.split(','); return `<circle cx="${x}" cy="${y}" r="3" fill="var(--afternoon)"/>`;}).join('')}
+    </svg>`;
+  }
+
+  function renderChangedCard(slotId, person, compact){
+    const changes = computeChanges(person);
+    changeCache[person] = changes;
+    const slot = document.getElementById(slotId);
+    if(!slot) return;
+    if(changes.length === 0){
+      slot.innerHTML = `<div class="changed-card cc-stable"><div class="cc-label"><span class="cc-dot"></span>Everything looks consistent</div><div class="cc-body">No significant changes detected in recent records.</div></div>`;
+      return;
+    }
+    const top = changes.slice().sort((a,b)=>severityRank[b.category]-severityRank[a.category])[0];
+    const moreCount = changes.length - 1;
+    slot.innerHTML = `<button class="changed-card cc-${top.category}" id="changed-card-btn">
+      <div class="cc-label"><span class="cc-dot"></span>${top.category==='stable' ? 'Looking stable' : 'Something changed'}</div>
+      <div class="cc-body">${top.cardText}</div>
+      <div class="cc-link">${top.category==='stable' ? 'No action needed' : 'View details →'}</div>
+    </button>${moreCount>0 ? `<button class="link-btn" id="view-all-changes-btn" style="margin-top:-10px;">View all changes (${moreCount} more)</button>` : ''}`;
+    const btn = document.getElementById('changed-card-btn');
+    if(btn && top.category !== 'stable'){
+      btn.addEventListener('click', ()=>{ openChangedDetail(person, top.key); });
+    } else if(btn){
+      btn.disabled = true;
+    }
+    const allBtn = document.getElementById('view-all-changes-btn');
+    if(allBtn){ allBtn.addEventListener('click', ()=>{ renderChangedList(person); showScreen('changed-list'); }); }
+  }
+
+  function openChangedDetail(person, key){
+    const changes = changeCache[person] || computeChanges(person);
+    const item = changes.find(c=>c.key===key);
+    if(!item) return;
+    const catLabel = item.category === 'attention' ? 'Needs attention' : item.category === 'watch' ? 'Worth checking' : 'Stable';
+    document.getElementById('changed-detail-body').innerHTML = `
+      <div class="settings-subhead" style="margin-top:0;padding-top:0;border-top:none;">${item.label}</div>
+      <div class="cc-${item.category}" style="display:inline-block;padding:4px 10px;border-radius:999px;background:var(--cc-bg);color:var(--cc-text);border:1px solid var(--cc-border);font-size:calc(11.5px * var(--fs));font-weight:700;margin-bottom:14px;">${catLabel}</div>
+      <div class="cd-compare">
+        <div class="cd-box"><div class="cd-box-label">${item.isBloodReport ? 'Previous report' : 'Recent average'}</div><div class="cd-box-value">${item.baseline}</div></div>
+        <div class="cd-box"><div class="cd-box-label">Current</div><div class="cd-box-value">${item.current}</div></div>
+      </div>
+      ${sparkline(item.series, item.unit)}
+      <div class="cd-section-title">What changed</div>
+      <div class="cd-section-body">${item.whatChanged}</div>
+      <div class="cd-section-title">What you can do</div>
+      <div class="cd-section-body">Continue recording readings, and consider discussing this change with your healthcare professional if it continues or feels unexpected.</div>
+      <button class="save-btn" id="cd-view-all-btn" style="margin-top:16px;">View all readings</button>
+      <button class="link-btn" id="cd-add-reading-btn">+ Add new reading</button>
+    `;
+    document.getElementById('cd-view-all-btn').addEventListener('click', ()=>{
+      showScreen('vitals');
+      if(settings.mode === 'parent'){ exitParentFlow(); document.getElementById('caregiver-history-block').classList.remove('hidden'); }
+    });
+    document.getElementById('cd-add-reading-btn').addEventListener('click', ()=>{
+      const vitalKey = item.key==='bp'?'bp':item.key==='sugar'?'sugar':item.key==='spo2'?'ox':item.key==='weight'?'weight':null;
+      if(settings.mode === 'parent' && vitalKey){ showScreen('vitals'); enterParentFlow(vitalKey); }
+      else { showScreen('vitals'); }
+    });
+    showScreen('changed-detail');
+  }
+  document.getElementById('back-from-changed-btn').addEventListener('click', ()=>{
+    showScreen(settings.mode === 'parent' ? 'parent-home' : 'vitals');
+  });
+
+  function renderChangedList(person){
+    document.getElementById('changed-list-person-label').textContent = personName(person);
+    const changes = computeChanges(person);
+    const card = document.getElementById('changed-list-card');
+    if(changes.length === 0){ card.innerHTML = '<div class="empty-hist">No significant changes detected in recent records.</div>'; return; }
+    card.innerHTML = changes.slice().sort((a,b)=>severityRank[b.category]-severityRank[a.category]).map(c=>{
+      const catLabel = c.category === 'attention' ? 'Needs attention' : c.category === 'watch' ? 'Worth checking' : 'Stable';
+      return `<div class="changed-list-item cc-${c.category}" data-key="${c.key}">
+        <div class="cli-top"><span class="cli-metric">${c.label}</span><span class="cli-badge">${catLabel}</span></div>
+        <div class="cli-desc">${c.cardText}</div>
+      </div>`;
+    }).join('');
+    card.querySelectorAll('.changed-list-item').forEach(el=>{
+      el.addEventListener('click', ()=>openChangedDetail(person, el.dataset.key));
+    });
+  }
+  document.getElementById('back-from-changed-list-btn').addEventListener('click', ()=>{
+    showScreen(settings.mode === 'parent' ? 'parent-home' : 'vitals');
+  });
+
+  // ================= SCAN READING =================
+  let scanStream = null;
+  let scanDeviceKey = null; // 'bp' | 'ox' | 'sugar' | 'weight'
+  let scanReturnMode = null; // where to land after confirm: 'parent-home' | 'vitals'
+  let scanLastEntryOrigin = 'quick'; // tracks whether scan opened via quick action vs card link
+
+  const SCAN_DEVICE_LABELS = { bp:'Blood pressure monitor', ox:'Oximeter', sugar:'Glucometer', weight:'Weighing scale' };
+
+  function openScanScreen(deviceKey){
+    scanDeviceKey = deviceKey || null;
+    showScreen('scan');
+    resetScanSteps();
+    if(deviceKey){ goToScanCamera(); } else { showScanStep('picker'); }
+  }
+  document.getElementById('ph-scan-btn').addEventListener('click', ()=>{ openScanScreen(null); });
+  document.getElementById('cg-scan-btn').addEventListener('click', ()=>{ openScanScreen(null); });
+  document.querySelectorAll('[data-scan-device]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ scanDeviceKey = btn.dataset.scanDevice; goToScanCamera(); });
+  });
+  document.getElementById('scan-back-btn').addEventListener('click', ()=>{
+    stopCamera();
+    showScreen(settings.mode === 'parent' ? 'parent-home' : 'vitals');
+  });
+
+  function showScanStep(step){
+    ['picker','camera','processing','review'].forEach(s=>{
+      document.getElementById('scan-step-'+s).classList.toggle('hidden', s !== step);
+    });
+  }
+  function resetScanSteps(){
+    document.getElementById('scan-review-success').classList.add('hidden');
+    document.getElementById('scan-review-fail').classList.add('hidden');
+    document.getElementById('scan-camera-error').classList.add('hidden');
+  }
+
+  async function goToScanCamera(){
+    showScanStep('camera');
+    const video = document.getElementById('scan-video');
+    const errEl = document.getElementById('scan-camera-error');
+    errEl.classList.add('hidden');
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      errEl.textContent = 'Camera access needs this page to be opened over https:// (e.g. your GitHub Pages link), not a local file. Use "Enter manually instead" below.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+    try{
+      stopCamera();
+      scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = scanStream;
+    }catch(e){
+      console.error('Camera error', e);
+      errEl.textContent = 'Could not open the camera (permission denied, or no camera available). Use "Enter manually instead" below.';
+      errEl.classList.remove('hidden');
+    }
+  }
+  function stopCamera(){
+    if(scanStream){ scanStream.getTracks().forEach(t=>t.stop()); scanStream = null; }
+  }
+
+  document.getElementById('scan-capture-btn').addEventListener('click', captureAndRecognize);
+  async function captureAndRecognize(){
+    const video = document.getElementById('scan-video');
+    const canvas = document.getElementById('scan-canvas');
+    if(!video.videoWidth){ return; }
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    stopCamera();
+    showScanStep('processing');
+
+    try{
+      if(typeof Tesseract === 'undefined') throw new Error('OCR engine failed to load');
+      const result = await Tesseract.recognize(canvas, 'eng', {
+        tessedit_char_whitelist: '0123456789./: '
+      });
+      const text = (result && result.data && result.data.text) || '';
+      const parsed = interpretScan(scanDeviceKey, text);
+      showScanReview(parsed);
+    }catch(e){
+      console.error('OCR failed', e);
+      showScanReview(null);
+    }
+  }
+
+  function extractNumbers(text){
+    const matches = text.match(/\d+(\.\d+)?/g) || [];
+    return matches.map(Number).filter(n => !isNaN(n));
+  }
+
+  function interpretScan(deviceKey, rawText){
+    const nums = extractNumbers(rawText);
+    if(nums.length === 0) return null;
+
+    if(deviceKey === 'weight'){
+      const candidate = nums.find(n => n >= 20 && n <= 300) || nums[0];
+      return { fields: { weight: candidate } };
+    }
+    if(deviceKey === 'sugar'){
+      const candidate = nums.find(n => n >= 40 && n <= 400) || nums[0];
+      return { fields: { sugar: candidate } };
+    }
+    if(deviceKey === 'ox'){
+      const spo2 = nums.find(n => n >= 70 && n <= 100);
+      const pulse = nums.find(n => n !== spo2 && n >= 30 && n <= 200);
+      if(spo2 === undefined && pulse === undefined) return null;
+      return { fields: { spo2: spo2 !== undefined ? spo2 : '', pulse: pulse !== undefined ? pulse : '' } };
+    }
+    if(deviceKey === 'bp'){
+      const plausible = nums.filter(n => n >= 30 && n <= 250);
+      const sorted = plausible.slice().sort((a,b)=>b-a);
+      const sys = sorted.find(n => n >= 70 && n <= 220);
+      const dia = sorted.find(n => n !== sys && n >= 40 && n <= 140);
+      const pulse = plausible.find(n => n !== sys && n !== dia && n >= 30 && n <= 180);
+      if(sys === undefined && dia === undefined) return null;
+      return { fields: { sys: sys !== undefined ? sys : '', dia: dia !== undefined ? dia : '', pulse: pulse !== undefined ? pulse : '' } };
+    }
+    return null;
+  }
+
+  function showScanReview(parsed){
+    resetScanSteps();
+    showScanStep('review');
+    if(!parsed || !parsed.fields){
+      document.getElementById('scan-review-fail').classList.remove('hidden');
+      return;
+    }
+    document.getElementById('scan-review-success').classList.remove('hidden');
+    const grid = document.getElementById('scan-review-fields');
+    const f = parsed.fields;
+    if(scanDeviceKey === 'weight'){
+      grid.style.gridTemplateColumns = '1fr';
+      grid.innerHTML = `<div class="scan-review-field"><label>Weight</label><input type="number" step="0.1" id="scan-in-weight" value="${f.weight}"></div>`;
+    } else if(scanDeviceKey === 'sugar'){
+      grid.style.gridTemplateColumns = '1fr';
+      grid.innerHTML = `<div class="scan-review-field"><label>Reading</label><input type="number" id="scan-in-sugar" value="${f.sugar}"></div>`;
+    } else if(scanDeviceKey === 'ox'){
+      grid.style.gridTemplateColumns = '1fr 1fr';
+      grid.innerHTML = `<div class="scan-review-field"><label>Oxygen %</label><input type="number" id="scan-in-spo2" value="${f.spo2}"></div>
+        <div class="scan-review-field"><label>Pulse</label><input type="number" id="scan-in-pulse" value="${f.pulse}"></div>`;
+    } else if(scanDeviceKey === 'bp'){
+      grid.style.gridTemplateColumns = '1fr 1fr 1fr';
+      grid.innerHTML = `<div class="scan-review-field"><label>Top</label><input type="number" id="scan-in-sys" value="${f.sys}"></div>
+        <div class="scan-review-field"><label>Bottom</label><input type="number" id="scan-in-dia" value="${f.dia}"></div>
+        <div class="scan-review-field"><label>Pulse</label><input type="number" id="scan-in-pulse" value="${f.pulse}"></div>`;
+    }
+  }
+
+  document.getElementById('scan-retry-btn').addEventListener('click', goToScanCamera);
+  document.getElementById('scan-fail-retry-btn').addEventListener('click', goToScanCamera);
+  document.getElementById('scan-manual-from-camera').addEventListener('click', ()=>goToVitalsForScan(true));
+  document.getElementById('scan-manual-from-review').addEventListener('click', ()=>goToVitalsForScan(true));
+  document.getElementById('scan-fail-manual-btn').addEventListener('click', ()=>goToVitalsForScan(true));
+
+  function nextEmptyTrial(prefixes){
+    for(const n of [1,2,3]){
+      if(prefixes.every(p => getVal(p+'-'+n) === '')) return n;
+    }
+    return 3; // all full — overwrite the last one
+  }
+
+  function goToVitalsForScan(blank){
+    showScreen('vitals');
+    enterParentFlow(scanDeviceKey);
+    const scanAgainBtn = document.getElementById('scan-again-btn');
+    scanAgainBtn.classList.toggle('hidden', !(scanDeviceKey === 'bp' || scanDeviceKey === 'ox'));
+    if(!blank && scanDeviceKey){
+      applyScanValuesToForm();
+    }
+  }
+  document.getElementById('scan-again-btn').addEventListener('click', ()=>{ showScreen('scan'); resetScanSteps(); goToScanCamera(); });
+
+  let pendingScanValues = null;
+  document.getElementById('scan-use-btn').addEventListener('click', ()=>{
+    if(scanDeviceKey === 'weight'){
+      pendingScanValues = { weight: document.getElementById('scan-in-weight').value };
+    } else if(scanDeviceKey === 'sugar'){
+      pendingScanValues = { sugar: document.getElementById('scan-in-sugar').value };
+    } else if(scanDeviceKey === 'ox'){
+      pendingScanValues = { spo2: document.getElementById('scan-in-spo2').value, pulse: document.getElementById('scan-in-pulse').value };
+    } else if(scanDeviceKey === 'bp'){
+      pendingScanValues = { sys: document.getElementById('scan-in-sys').value, dia: document.getElementById('scan-in-dia').value, pulse: document.getElementById('scan-in-pulse').value };
+    }
+    goToVitalsForScan(false);
+  });
+
+  function applyScanValuesToForm(){
+    if(!pendingScanValues) return;
+    if(scanDeviceKey === 'weight'){
+      document.querySelector('[data-field="weight-value"]').value = pendingScanValues.weight;
+    } else if(scanDeviceKey === 'sugar'){
+      document.querySelector('[data-field="sugar-value"]').value = pendingScanValues.sugar;
+    } else if(scanDeviceKey === 'ox'){
+      const n = nextEmptyTrial(['ox-spo2','ox-pulse']);
+      document.querySelector(`[data-field="ox-spo2-${n}"]`).value = pendingScanValues.spo2;
+      document.querySelector(`[data-field="ox-pulse-${n}"]`).value = pendingScanValues.pulse;
+    } else if(scanDeviceKey === 'bp'){
+      const n = nextEmptyTrial(['bp-sys','bp-dia','bp-pulse']);
+      document.querySelector(`[data-field="bp-sys-${n}"]`).value = pendingScanValues.sys;
+      document.querySelector(`[data-field="bp-dia-${n}"]`).value = pendingScanValues.dia;
+      document.querySelector(`[data-field="bp-pulse-${n}"]`).value = pendingScanValues.pulse;
+    }
+    pendingScanValues = null;
+    document.querySelectorAll('#vitals-screen input[data-field]').forEach(inp=>{
+      inp.classList.toggle('flag', checkFlag(inp.dataset.field, inp.value.trim()));
+    });
+    updateAverages();
+  }
+
+  // ---------- Settings panel ----------
+  const settingsToggle = document.getElementById('settings-toggle');
+  const settingsPanel = document.getElementById('settings-panel');
+  settingsToggle.addEventListener('click', ()=>{ settingsPanel.classList.toggle('open'); });
+
+  document.getElementById('save-settings-btn').addEventListener('click', ()=>{
+    settings.webhookUrl = document.getElementById('webhook-input').value.trim();
+    saveSettingsToDisk();
+    document.getElementById('conn-status').textContent = 'URL saved.'; document.getElementById('conn-status').style.color = 'var(--ok)';
+  });
+  document.getElementById('test-conn-btn').addEventListener('click', async ()=>{
+    const url = document.getElementById('webhook-input').value.trim(); const s = document.getElementById('conn-status');
+    if(!url){ s.textContent = 'Paste your Web App URL first.'; s.style.color='var(--pulse)'; return; }
+    s.textContent = 'Testing…'; s.style.color='var(--ink-soft)';
+    try{
+      await fetch(url, { method:'POST', mode:'no-cors', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({type:'vitals', person:'mother', date:'test', time:'test', period:'test', test:true}) });
+      s.textContent = 'Request sent — check your Google Sheet for a "test" row.'; s.style.color = 'var(--ok)';
+    }catch(e){ s.textContent = 'Could not reach that URL. Double-check it was copied in full.'; s.style.color = 'var(--pulse)'; }
+  });
+  document.getElementById('sync-all-btn').addEventListener('click', async ()=>{
+    const s = document.getElementById('conn-status');
+    if(!settings.webhookUrl){ s.textContent='Save your Sheet URL first.'; s.style.color='var(--pulse)'; return; }
+    s.textContent = 'Syncing pending entries…'; s.style.color='var(--ink-soft)';
+    let count = 0;
+    for(const person of ['father','mother']){ for(const entry of store[person]){ if(!entry.synced){ await syncVitalsEntry(entry); count++; } } }
+    for(const key of ['fatherBlood','motherBlood']){ for(const report of store[key]){ if(!report.synced){ await syncBloodReport(report); count++; } } }
+    s.textContent = `Synced ${count} pending ${count===1?'item':'items'}.`; s.style.color = 'var(--ok)';
+    renderHistory(); renderBloodHistory();
+  });
+  document.getElementById('export-csv-btn').addEventListener('click', ()=>{
+    let out = 'VITALS\n';
+    out += 'Person,Date,Time,Time of Day,Systolic Avg,Diastolic Avg,BP Pulse Avg,SpO2 Avg,Oximeter Pulse Avg,Weight,Weight Unit,Sugar,Sugar Context,Sugar Unit,BP Raw,SpO2 Raw\n';
+    ['father','mother'].forEach(person=>{
+      store[person].forEach(e=>{
+        out += [person, e.date, e.time, e.period, e.sysAvg, e.diaAvg, e.bpPulseAvg, e.spo2Avg, e.oxPulseAvg, e.weightValue, e.weightUnit, e.sugarValue, e.sugarContext, e.sugarUnit, `"${e.bpRaw}"`, `"${e.spo2Raw}"`].join(',') + '\n';
+      });
+    });
+    out += '\nBLOOD REPORTS\n'; out += 'Person,Date,Time,Report ID,Parameter,Value,Unit\n';
+    [['father','fatherBlood'],['mother','motherBlood']].forEach(([person,key])=>{
+      store[key].forEach(r=>{ r.parameters.forEach(p=>{ out += [person, r.date, r.time, r.reportId, `"${p.name}"`, p.value, p.unit].join(',') + '\n'; }); });
+    });
+    const blob = new Blob([out], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'vitals-log.csv'; a.click();
+  });
+
+  // ---------- Init ----------
+  renderPeriodPills();
+  updateAverages();
+  loadStore();
+})();
+</script>
+</body>
+</html>
